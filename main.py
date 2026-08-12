@@ -15,13 +15,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Fix Render Health Check (405 Method Not Allowed)
+# Fix Render Health Check and serve the main page
 @app.head("/")
 @app.get("/")
 def get_game():
-    # Dynamically find the absolute path of the templates folder
+    # Look for index.html in the exact same directory as main.py
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    html_path = os.path.join(base_dir, "templates", "index.html")
+    html_path = os.path.join(base_dir, "index.html")
     
     if os.path.exists(html_path):
         return FileResponse(html_path)
@@ -53,7 +53,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str):
             message = json.loads(data)
             
             if message["type"] == "move":
-                if room_id in rooms in rooms[room_id] and username in rooms[room_id]:
+                if room_id in rooms and username in rooms[room_id]:
                     rooms[room_id][username]["x"] = message["x"]
                     rooms[room_id][username]["y"] = message["y"]
                     rooms[room_id][username]["z"] = message["z"]
@@ -99,3 +99,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
