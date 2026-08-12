@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Browser Valorant Clone</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%; font-family: 'Arial', sans-serif; background: #111; color: #fff; }
+        #menu-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(15, 25, 35, 0.95); z-index: 10; border: 2px solid #ff4655; box-sizing: border-box; }
+        .input-box { padding: 12px; margin: 8px; width: 260px; border: 1px solid #ff4655; background: #222; color: white; font-size: 16px; outline: none; }
+        .btn { padding: 12px 30px; background: #ff4655; color: white; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 16px; transition: 0.2s; }
+        .btn:hover { background: #e03e4b; transform: scale(1.05); }
+        #hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; justify-content: space-between; width: 80%; pointer-events: none; z-index: 5; }
+        .hud-panel { background: rgba(0,0,0,0.6); padding: 15px 25px; border-left: 4px solid #ff4655; font-size: 20px; font-weight: bold; text-shadow: 1px 1px 2px black; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 50%; background: #00ff00; transform: translate(-50%, -50%); display: none; pointer-events: none; z-index: 5; }
+        #room-link-display { position: absolute; top: 20px; left: 20px; display: none; background: rgba(0,0,0,0.7); padding: 10px; font-size: 14px; border: 1px solid #555; }
+    </style>
+    <!-- Import Three.js Engine and Orbit Controls -->
+    <script src="https://cloudflare.com"></script>
+</head>
+<body>
+
+    <!-- Main Menu Interface -->
+    <div id="menu-container">
+        <h1 style="color: #ff4655; letter-spacing: 4px; font-size: 40px; margin-bottom: 5px;">VALORANT-PY</h1>
+        <p style="color: #888; margin-bottom: 30px;">Krunker-style Python Multiplayer Matchmaker</p>
+        <input type="text" id="username" class="input-box" placeholder="User ID (e.g., player1)">
+        <input type="password" id="password" class="input-box" placeholder="Password (e.g., pass123)">
+        <input type="text" id="room-input" class="input-box" placeholder="Room ID (Leave blank to host)">
+        <button class="btn" onclick="connectToMatch()">Launch Match</button>
+    </div>
+
+    <!-- Gameplay Overlay Elements -->
+    <div id="crosshair"></div>
+    <div id="room-link-display">Room Link: <span id="link-text" style="color:#ff4655;"></span></div>
+    <div id="hud">
+        <div class="hud-panel" id="hp-display">HP: 100</div>
+        <div class="hud-panel" id="abilities-display">Q: Ready | E: Ready | X: Ready</div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, ws;
+        let localPlayerId = "";
+        let currentRoom = "";
+        let keys = {};
+        let otherPlayers = {};
+        let isSprinting = false;
+        let isCrouching = false;
+
+        function connectToMatch() {
+            const user = document.getElementById("username").value;
+            const pass = document.getElementById("password").value;
+            let room = document.getElementById("room-input").value;
+
+            if(!user || !pass) { alert("Please input your user qualifications."); return; }
+            if(!room) { room = Math.random().toString(36).substring(2, 7); } // Auto-generate room code
+
+            currentRoom = room;
+            localPlayerId = user;
+
+            // Establish real-time connection using modern WebSockets protocol
+            const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+            ws = new WebSocket(`${protocol}${window.location.host}/ws/${room}/${user}`);
+
+            ws.onopen = () => {
+                document.getElementById("menu-container").style.display = "none";
+                document.getElementById("hud").style.display = "flex";
+                document.getElementById("crosshair").style.display = "block";
+                document.getElementById("room-link-display").style.display = "block";
+                document.getElementById("link-text").innerText = `${window.location.origin}/?room=${room}`;
+                
+                init3DGame();
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                
+                if (msg.type === "update" && msg.username !== localPlayerId) {
+                    // Spawn or update a friend's position inside your browser viewport
+                    if (!otherPlayers[msg.username]) {
+                        const geometry = new THREE.BoxGeometry(1, 2, 1);
+                        const material = new THREE.MeshStandardMaterial({ color: 0xff4655 });
+                        const model = new THREE.Mesh(geometry, material);
+                        scene.add(model);
+                        otherPlayers[msg.username] = model;
+                    }
+                    otherPlayers[msg.username].position.set(msg.x, msg.y, msg.z);
+                    otherPlayers[msg.username].rotation.y = msg.ry;
+                }
+                
+                if (msg.type === "player_left" && otherPlayers[msg.username]) {
+                    scene.remove(otherPlayers[msg.username]);
+                    delete otherPlayers[msg.username];
+                }
+            };
+        }
+
+        function init3DGame() {
+            // Setup scene, camera view dimensions and canvas outputs
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f1923); // Valorant Charcoal Gray theme
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 5); // Average tactical human eye-height level
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Level Map Geometry (Simulating a structural tactical ground lane)
+            const floorGeo = new THREE.PlaneGeometry(60, 60);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e3b4e });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+
+            // Add lighting environments
+            const light = new THREE.DirectionalLight(0xffffff, 1.0);
+            light.position.set(10, 20, 10);
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+            // Bind player movement trackers
+            window.addEventListener('keydown', e => { 
+                keys[e.code] = true; 
+                if(e.code === 'ShiftLeft') isSprinting = true;
+                if(e.code === 'ControlLeft') { isCrouching = true; camera.position.y = 0.9; } // Drop eye camera view down
+                if(['KeyQ', 'KeyE', 'KeyX'].includes(e.code)) castAgentAbility(e.code);
+            });
+            window.addEventListener('keyup', e => { 
+                keys[e.code] = false; 
+                if(e.code === 'ShiftLeft') isSprinting = false;
+                if(e.code === 'ControlLeft') { isCrouching = false; camera.position.y = 1.6; }
+            });
+
+            // Basic Mouse Look control integration
+            document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
+            document.addEventListener('click', () => { document.body.requestPointerLock(); });
+            document.addEventListener('mousemove', (e) => {
+                if(document.pointerLockElement === document.body) {
+                    camera.rotation.y -= e.movementX * 0.002;
+                }
+            });
+            camera.rotation.order = "YXZ";
+
+            animateLoop();
+        }
+
+        function castAgentAbility(key) {
+            console.log("Casting: " + key);
+            ws.send(json.stringify({ type: "ability", ability: key }));
+            // Flash HUD interface display configuration
+            document.getElementById("abilities-display").innerText = `${key} Triggered!`;
+            setTimeout(() => {
+                document.getElementById("abilities-display").innerText = "Q: Ready | E: Ready | X: Ready";
+            }, 1500);
+        }
+
+        function animateLoop() {
+            requestAnimationFrame(animateLoop);
+
+            // Factor movements configurations dynamically
+            let currentMoveSpeed = 0.08;
+            if(isSprinting) currentMoveSpeed = 0.14;
+            if(isCrouching) currentMoveSpeed = 0.03;
+
+            if (keys['KeyW']) camera.translateZ(-currentMoveSpeed);
+            if (keys['KeyS']) camera.translateZ(currentMoveSpeed);
+            if (keys['KeyA']) camera.translateX(-currentMoveSpeed);
+            if (keys['KeyD']) camera.translateX(currentMoveSpeed);
+
+            // Lock movements vertical to level ground plane
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: "move",
+                    x: camera.position.x,
+                    y: camera.position.y,
+                    z: camera.position.z,
+                    ry: camera.rotation.y
+                }));
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Auto-fill room input if shared via deep-link parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.get('room')) {
+            document.getElementById('room-input').value = urlParams.get('room');
+        }
+    </script>
+</body>
+</html>
