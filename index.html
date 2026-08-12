@@ -115,7 +115,7 @@
             line-height: 1.6;
         }
     </style>
-    <!-- Import Three.js Engine from CDN -->
+    <!-- Import official production Three.js framework from CDN -->
     <script src="https://cloudflare.com"></script>
 </head>
 <body>
@@ -138,7 +138,7 @@
         </div>
     </div>
 
-    <!-- Gameplay HUD Layer -->
+    <!-- Gameplay Overlay Elements -->
     <div id="crosshair"></div>
     <div id="room-link-display">Invite Friends Link: <span id="link-text" style="color:#ff4655; font-weight: bold;"></span></div>
     
@@ -166,6 +166,7 @@
                 return; 
             }
             
+            // Auto-generate a random 5-character string room identifier if hosting
             if(!room) { 
                 room = Math.random().toString(36).substring(2, 7); 
             }
@@ -173,8 +174,13 @@
             currentRoom = room;
             localPlayerId = user;
 
-            // Handle network routing protocol generation automatically
-            const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+            // Secure network checking protocol configuration matrices
+            let protocol = "ws://";
+            if (window.location.protocol === "https:" || window.location.hostname !== "localhost") {
+                protocol = "wss://";
+            }
+
+            console.log(`Connecting to network: ${protocol}${window.location.host}/ws/${room}/${user}`);
             ws = new WebSocket(`${protocol}${window.location.host}/ws/${room}/${user}`);
 
             ws.onopen = () => {
@@ -183,6 +189,7 @@
                 document.getElementById("crosshair").style.display = "block";
                 document.getElementById("room-link-display").style.display = "block";
                 
+                // Format a shareable deep-link matching Krunker URL mechanics
                 document.getElementById("link-text").innerText = `${window.location.origin}/?room=${room}`;
                 
                 init3DGame();
@@ -191,19 +198,22 @@
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 
-                // Track positions of other friends online
+                // Real-time synchronization loop handling movements of remote users
                 if (msg.type === "update" && msg.username !== localPlayerId) {
                     if (!otherPlayers[msg.username]) {
+                        // Spawn a 3D structural model standing block representation for your friend
                         const geometry = new THREE.BoxGeometry(1, 2, 1);
                         const material = new THREE.MeshStandardMaterial({ color: 0xff4655 });
                         const model = new THREE.Mesh(geometry, material);
                         scene.add(model);
                         otherPlayers[msg.username] = model;
                     }
+                    // Sync up coordinates instantly
                     otherPlayers[msg.username].position.set(msg.x, msg.y, msg.z);
                     otherPlayers[msg.username].rotation.y = msg.ry;
                 }
                 
+                // Drop connection handling if an active teammate exits the application window
                 if (msg.type === "player_left" && otherPlayers[msg.username]) {
                     scene.remove(otherPlayers[msg.username]);
                     delete otherPlayers[msg.username];
@@ -211,30 +221,30 @@
             };
 
             ws.onerror = (err) => {
-                console.error("WebSocket connection failure: ", err);
-                alert("Connection lost or server rejected credentials package.");
+                console.error("WebSocket network engine block failure: ", err);
+                alert("Network Connection Error. Secure socket streams rejected.");
             };
         }
 
         function init3DGame() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f1923); 
+            scene.background = new THREE.Color(0x0f1923); // Standard tactical charcoal theme look
             
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 1.6, 5); 
+            camera.position.set(0, 1.6, 5); // Human viewpoint baseline alignment eye-level
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Ground Floor Plane
+            // Level Ground Map Representation
             const floorGeo = new THREE.PlaneGeometry(80, 80);
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e3b4e, roughness: 0.8 });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             scene.add(floor);
 
-            // Level Structures (Obstacles representing pillars/sites)
+            // Simple map structures to simulate blockades or corridors
             const boxGeo = new THREE.BoxGeometry(4, 5, 4);
             const boxMat = new THREE.MeshStandardMaterial({ color: 0x4b5966 });
             for(let i = 0; i < 5; i++) {
@@ -242,6 +252,7 @@
                 obstacle.position.set((i - 2) * 12, 2.5, -10);
                 scene.add(obstacle);
             }
+
 
             // Map Lights Configuration
             const light = new THREE.DirectionalLight(0xffffff, 1.2);
