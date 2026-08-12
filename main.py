@@ -1,12 +1,11 @@
 import os
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Enable CORS so browser WebSockets don't get blocked by security policies
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,19 +14,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Fix Render Health Check and serve the main page
 @app.head("/")
 @app.get("/")
 def get_game():
-    # Look for index.html in the exact same directory as main.py
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    html_path = os.path.join(base_dir, "index.html")
-    
-    if os.path.exists(html_path):
-        return FileResponse(html_path)
-    return {"error": f"File not found at configured path: {html_path}"}
+    html_path_1 = os.path.join(base_dir, "index.html")
+    html_path_2 = os.path.abspath("index.html")
+    html_path_3 = os.path.join(base_dir, "templates", "index.html")
 
-# Matchmaking Rooms state tracker
+    if os.path.exists(html_path_1):
+        return FileResponse(html_path_1)
+    elif os.path.exists(html_path_2):
+        return FileResponse(html_path_2)
+    elif os.path.exists(html_path_3):
+        return FileResponse(html_path_3)
+        
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "index.html not found",
+            "looked_in_path_1": html_path_1,
+            "looked_in_path_2": html_path_2,
+            "current_working_directory": os.getcwd()
+        }
+    )
+
 rooms = {}
 
 @app.websocket("/ws/{room_id}/{username}")
@@ -99,4 +110,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
