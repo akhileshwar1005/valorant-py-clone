@@ -115,12 +115,10 @@
             line-height: 1.6;
         }
     </style>
-    <!-- Import official production Three.js framework from CDN -->
-    <script src="https://cloudflare.com"></script>
+    <script src="https://unpkg.com"></script>
 </head>
 <body>
 
-    <!-- Main Menu Interface -->
     <div id="menu-container">
         <h1 style="color: #ff4655; letter-spacing: 6px; font-size: 50px; margin: 0 0 10px 0;">VALORANT-PY</h1>
         <p style="color: #ece8e1; margin: 0 0 30px 0; letter-spacing: 1px;">Krunker-style Python Multi-Lobby Matchmaker</p>
@@ -138,7 +136,6 @@
         </div>
     </div>
 
-    <!-- Gameplay Overlay Elements -->
     <div id="crosshair"></div>
     <div id="room-link-display">Invite Friends Link: <span id="link-text" style="color:#ff4655; font-weight: bold;"></span></div>
     
@@ -166,7 +163,6 @@
                 return; 
             }
             
-            // Auto-generate a random 5-character string room identifier if hosting
             if(!room) { 
                 room = Math.random().toString(36).substring(2, 7); 
             }
@@ -174,13 +170,12 @@
             currentRoom = room;
             localPlayerId = user;
 
-            // Secure network checking protocol configuration matrices
             let protocol = "ws://";
             if (window.location.protocol === "https:" || window.location.hostname !== "localhost") {
                 protocol = "wss://";
             }
 
-            console.log(`Connecting to network: ${protocol}${window.location.host}/ws/${room}/${user}`);
+            console.log(`Connecting to: ${protocol}${window.location.host}/ws/${room}/${user}`);
             ws = new WebSocket(`${protocol}${window.location.host}/ws/${room}/${user}`);
 
             ws.onopen = () => {
@@ -189,7 +184,6 @@
                 document.getElementById("crosshair").style.display = "block";
                 document.getElementById("room-link-display").style.display = "block";
                 
-                // Format a shareable deep-link matching Krunker URL mechanics
                 document.getElementById("link-text").innerText = `${window.location.origin}/?room=${room}`;
                 
                 init3DGame();
@@ -198,22 +192,18 @@
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 
-                // Real-time synchronization loop handling movements of remote users
                 if (msg.type === "update" && msg.username !== localPlayerId) {
                     if (!otherPlayers[msg.username]) {
-                        // Spawn a 3D structural model standing block representation for your friend
                         const geometry = new THREE.BoxGeometry(1, 2, 1);
                         const material = new THREE.MeshStandardMaterial({ color: 0xff4655 });
                         const model = new THREE.Mesh(geometry, material);
                         scene.add(model);
                         otherPlayers[msg.username] = model;
                     }
-                    // Sync up coordinates instantly
                     otherPlayers[msg.username].position.set(msg.x, msg.y, msg.z);
                     otherPlayers[msg.username].rotation.y = msg.ry;
                 }
                 
-                // Drop connection handling if an active teammate exits the application window
                 if (msg.type === "player_left" && otherPlayers[msg.username]) {
                     scene.remove(otherPlayers[msg.username]);
                     delete otherPlayers[msg.username];
@@ -221,30 +211,33 @@
             };
 
             ws.onerror = (err) => {
-                console.error("WebSocket network engine block failure: ", err);
-                alert("Network Connection Error. Secure socket streams rejected.");
+                console.error("WebSocket connectivity crash configuration error:", err);
+                alert("Network streaming issue. Try restarting the deployment session.");
             };
         }
 
         function init3DGame() {
+            if (typeof THREE === 'undefined') {
+                alert("Error: 3D Render Engine script failed to download from CDN. Refresh the window page.");
+                return;
+            }
+
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f1923); // Standard tactical charcoal theme look
+            scene.background = new THREE.Color(0x0f1923); 
             
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 1.6, 5); // Human viewpoint baseline alignment eye-level
+            camera.position.set(0, 1.6, 5); 
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Level Ground Map Representation
             const floorGeo = new THREE.PlaneGeometry(80, 80);
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e3b4e, roughness: 0.8 });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             scene.add(floor);
 
-            // Simple map structures to simulate blockades or corridors
             const boxGeo = new THREE.BoxGeometry(4, 5, 4);
             const boxMat = new THREE.MeshStandardMaterial({ color: 0x4b5966 });
             for(let i = 0; i < 5; i++) {
@@ -253,14 +246,11 @@
                 scene.add(obstacle);
             }
 
-
-            // Map Lights Configuration
             const light = new THREE.DirectionalLight(0xffffff, 1.2);
             light.position.set(20, 40, 20);
             scene.add(light);
             scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-            // Input Tracking Listeners
             window.addEventListener('keydown', e => { 
                 keys[e.code] = true; 
                 if(e.code === 'ShiftLeft') isSprinting = true;
@@ -280,7 +270,6 @@
             }
         });
 
-        // Pointer Lock Integration for First Person Control Flow
         document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
         
         document.addEventListener('click', () => {
@@ -294,7 +283,7 @@
                 camera.rotation.y -= e.movementX * 0.0025;
             }
         });
-        
+
         camera.rotation.order = "YXZ";
 
         window.addEventListener('resize', () => {
@@ -308,13 +297,11 @@
 
     function castAgentAbility(key) {
         let abilityName = key === 'KeyQ' ? 'Q' : key === 'KeyE' ? 'E' : 'ULTIMATE';
-        console.log("Casting active signature: " + abilityName);
 
-        // WebSockets communications connection payload block
         ws.send(JSON.stringify({ type: "ability", ability: abilityName }));
 
         document.getElementById("abilities-display").style.color = "#ff4655";
-        // FIXED: Replaced raw text with a valid JavaScript template literal string
+        // FIXED: Enclosed template literal in backticks so it evaluates natively
         document.getElementById("abilities-display").innerText = `${abilityName} ACTIVATED`;
 
         setTimeout(() => {
@@ -348,10 +335,7 @@
         renderer.render(scene, camera);
     }
 
-    // Catch shared lobby invites automatically from window queries URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('room')) {
         document.getElementById('room-input').value = urlParams.get('room');
     }
-
-                                    
